@@ -1,0 +1,866 @@
+<!-- Archivo: templates/index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo }}</title>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">
+
+    <!-- Librerías Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .custom-scroll::-webkit-scrollbar { width: 8px; display: block; }
+        .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+        .tab-activa { border-bottom: 2px solid #6366f1; color: #818cf8; }
+        .tab-inactiva { border-bottom: 2px solid transparent; color: #64748b; }
+        .texto-noticia { white-space: pre-wrap; font-family: 'Segoe UI', Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-300 font-sans antialiased overflow-hidden h-screen w-full relative">
+
+    <!-- ========================================== -->
+    <!-- 1. PANTALLA DE ACCESO OBLIGATORIO -->
+    <!-- ========================================== -->
+    <div id="auth-modal" class="fixed inset-0 z-50 flex justify-center items-center">
+        <div class="absolute inset-0 bg-[url('/static/bg-login.jpg')] bg-cover bg-center bg-no-repeat"></div>
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"></div>
+
+        <div class="relative bg-slate-900/95 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md m-4 overflow-hidden h-[540px]">
+
+            <div id="panel-login" class="absolute inset-0 w-full h-full p-8 transition-transform duration-500 ease-in-out transform translate-x-0 flex flex-col justify-center">
+                <div class="flex justify-center mb-4">
+                    <div class="bg-indigo-500/20 p-3 rounded-xl border border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.2)]">
+                        <svg class="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-black text-white mb-2 text-center">Acceso Corporativo</h2>
+                <p class="text-sm text-slate-400 text-center mb-6 font-medium">Inicia sesión para acceder al panel de MRCA Solutions.</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Correo Electrónico</label>
+                        <input type="email" id="login-email" placeholder="usuario@empresa.com" class="w-full bg-slate-950/80 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Contraseña</label>
+                        <input type="password" id="login-pass" placeholder="••••••••" class="w-full bg-slate-950/80 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner">
+                    </div>
+                    <div class="flex space-x-3 pt-2">
+                        <button id="btn-login" onclick="authEmail('login', this)" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-colors active:scale-95">Ingresar</button>
+                        <button onclick="mostrarPanelRegistro()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-bold transition-colors border border-slate-600 active:scale-95">Crear Cuenta</button>
+                    </div>
+                    <div class="pt-4 border-t border-slate-700/50 text-center mt-4">
+                        <button onclick="ingresarComoInvitado()" class="text-indigo-400 hover:text-indigo-300 text-sm font-bold transition-colors">
+                            Ingresar como Invitado (Modo Prueba)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="panel-register" class="absolute inset-0 w-full h-full p-8 transition-transform duration-500 ease-in-out transform translate-x-full flex flex-col justify-center">
+                <button onclick="mostrarPanelLogin()" class="absolute top-6 left-6 text-slate-400 hover:text-indigo-400 transition-colors bg-slate-800 p-2 rounded-lg border border-slate-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                </button>
+                <div class="flex justify-center mb-4 mt-4">
+                    <div class="bg-emerald-500/20 p-3 rounded-xl border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                        <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-black text-white mb-2 text-center">Nuevo Registro</h2>
+                <p class="text-sm text-slate-400 text-center mb-6 font-medium">Únete a la plataforma de MRCA Solutions.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Correo Electrónico</label>
+                        <input type="email" id="reg-email" placeholder="nuevo@empresa.com" class="w-full bg-slate-950/80 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Crea una Contraseña</label>
+                        <input type="password" id="reg-pass" placeholder="••••••••" class="w-full bg-slate-950/80 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner">
+                    </div>
+                    <div class="pt-4">
+                        <button id="btn-register" onclick="authEmail('register', this)" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-colors active:scale-95">Registrarse Ahora</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. DASHBOARD PRINCIPAL -->
+    <!-- ========================================== -->
+    <div id="app-dashboard" class="hidden flex-col h-full w-full">
+
+        <nav class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center shrink-0 z-10">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-500/20 p-2 rounded-lg border border-indigo-500/30">
+                    <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white">Sistema Inteligente de Noticias</h1>
+                    <p class="text-xs text-slate-500 font-medium">Plataforma desarrollada por MRCA Solutions</p>
+                </div>
+            </div>
+            <div class="flex space-x-4">
+                <button id="btn-logout" class="border border-slate-700 hover:bg-rose-500/20 hover:border-rose-500/50 hover:text-rose-400 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition-all">
+                    Cerrar Sesión
+                </button>
+                <button onclick="ejecutarScraper()" id="btn-extraer" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>Extraer Noticias</span>
+                </button>
+            </div>
+        </nav>
+
+        <div class="bg-slate-900/80 border-b border-slate-800 px-6 py-4 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 shrink-0 shadow-md">
+            <div class="relative w-full md:w-1/3 flex space-x-3">
+                <div class="relative w-full">
+                    <svg class="w-5 h-5 absolute left-3 top-2.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="buscador" placeholder="Buscar por título, autor o fuente (ej. BBC, Universal)..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                </div>
+                <input type="date" id="filtro-fecha" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors w-40 cursor-pointer" title="Filtrar por fecha exacta">
+            </div>
+
+            <div class="flex space-x-2 overflow-x-auto w-full md:w-auto" id="filtros-container">
+                <button class="filtro-btn bg-indigo-600 text-white px-4 py-1.5 rounded-full text-xs font-bold" data-cat="Todos">Todos</button>
+                <button class="filtro-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold transition-colors" data-cat="Tecnología">Tecnología</button>
+                <button class="filtro-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold transition-colors" data-cat="Economía">Economía</button>
+                <button class="filtro-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold transition-colors" data-cat="Nacional">Nacional</button>
+                <button class="filtro-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold transition-colors" data-cat="Internacional">Internacional</button>
+            </div>
+            <div class="text-sm font-bold text-slate-500"><span id="contador-resultados">0</span> Documentos</div>
+        </div>
+
+        <main class="flex-grow flex flex-col p-6 max-w-7xl mx-auto w-full h-full overflow-hidden">
+
+            <div class="flex space-x-8 mb-4 border-b border-slate-800 shrink-0 px-2">
+                <button onclick="cambiarTab('feed')" id="tab-feed" class="tab-activa pb-3 font-bold text-sm uppercase tracking-wider">Directorio General</button>
+                <button onclick="cambiarTab('recomendadas')" id="tab-recomendadas" class="tab-inactiva pb-3 font-bold text-sm uppercase tracking-wider text-emerald-500">Noticias Recomendadas</button>
+                <button onclick="cambiarTab('favoritos')" id="tab-favoritos" class="tab-inactiva pb-3 font-bold text-sm uppercase tracking-wider text-amber-500 flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg> Mis Favoritos
+                </button>
+                <button onclick="cambiarTab('analitica')" id="tab-analitica" class="tab-inactiva pb-3 font-bold text-sm uppercase tracking-wider text-indigo-400 flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg> Analítica
+                </button>
+            </div>
+
+            <!-- MACRO DE RENDERIZADO (valores nulos saneados con "or ''") -->
+            {% macro render_lista(lista_noticias, id_contenedor) %}
+                <div id="{{ id_contenedor }}" class="flex-grow overflow-y-auto px-2 space-y-6 pb-10 custom-scroll lista-noticias">
+                    {% for noticia in lista_noticias %}
+                    <div class="tarjeta-noticia flex flex-col md:flex-row bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl overflow-hidden transition-all shadow-lg relative"
+                         data-titulo="{{ (noticia.titulo or '')|lower }}"
+                         data-categoria="{{ noticia.categoria.nombre if noticia.categoria else 'General' }}"
+                         data-autor="{{ (noticia.autor or 'redacción')|lower }}"
+                         data-fuente="{{ (noticia.fuente.nombre if noticia.fuente else 'general')|lower }}"
+                         data-fecha="{{ noticia.fecha_pub.strftime('%Y-%m-%d') if noticia.fecha_pub else '' }}"
+                         data-creacion="{{ noticia.creado_en.isoformat() if noticia.creado_en else '' }}"
+                         data-polaridad="{{ noticia.polaridad or 'Neutral' }}">
+
+                        <span class="badge-nuevo hidden absolute top-4 left-4 bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg uppercase tracking-widest z-20 animate-pulse border border-indigo-400">Nuevo</span>
+
+                        <div class="w-full md:w-1/4 h-48 md:h-auto bg-slate-800 relative shrink-0">
+                            {% if noticia.imagen_url %}
+                                <img src="{{ noticia.imagen_url }}" loading="lazy" class="absolute inset-0 w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/600x400/0f172a/4f46e5?text=Documento+Visual'">
+                            {% else %}
+                                <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 bg-slate-950">
+                                    <svg class="w-10 h-10 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                    <span class="text-xs font-bold uppercase">Sin Imagen</span>
+                                </div>
+                            {% endif %}
+
+                            <div class="absolute bottom-2 left-2 flex z-10">
+                                {% if noticia.polaridad == 'Positivo' %}
+                                    <span class="bg-slate-900/90 border border-emerald-500/30 text-emerald-400 text-[10px] font-black px-2 py-1 rounded shadow-lg flex items-center uppercase tracking-widest backdrop-blur-sm"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span> Positivo</span>
+                                {% elif noticia.polaridad == 'Negativo' %}
+                                    <span class="bg-slate-900/90 border border-rose-500/30 text-rose-400 text-[10px] font-black px-2 py-1 rounded shadow-lg flex items-center uppercase tracking-widest backdrop-blur-sm"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5 animate-pulse"></span> Negativo</span>
+                                {% else %}
+                                    <span class="bg-slate-900/90 border border-slate-600 text-slate-400 text-[10px] font-black px-2 py-1 rounded shadow-lg flex items-center uppercase tracking-widest backdrop-blur-sm"><span class="w-1.5 h-1.5 rounded-full bg-slate-500 mr-1.5"></span> Neutral</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="p-6 flex flex-col justify-between w-full relative">
+                            <div class="absolute top-6 right-6 flex space-x-2 z-10">
+                                <button onclick="toggleFavoritoSDK('{{ noticia.id_noticia }}')" class="btn-fav-{{ noticia.id_noticia }} p-2 rounded-md transition-colors border bg-slate-800 text-slate-400 hover:text-amber-400 border-slate-700" title="Guardar Documento">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                                </button>
+                                <button onclick="eliminarRegistro('{{ noticia.id_noticia }}')" class="bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 px-3 py-1.5 rounded-md text-xs font-bold">Borrar</button>
+
+                                <button onclick="abrirDoblePanel(this)"
+                                        data-titulo="{{ noticia.titulo or '' }}"
+                                        data-completo="{{ noticia.cuerpo_texto or '' }}"
+                                        data-resumen="{{ noticia.resumen or '' }}"
+                                        data-url="{{ noticia.url_original or '#' }}"
+                                        data-fuente="{{ noticia.fuente.nombre if noticia.fuente else 'General' }}"
+                                        data-autor="{{ noticia.autor or 'Redacción' }}"
+                                        data-polaridad="{{ noticia.polaridad or 'Neutral' }}"
+                                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-md text-xs font-bold shadow-lg flex items-center">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                        Lectura Profunda
+                                </button>
+                            </div>
+
+                            <div class="pr-64">
+                                <div class="text-xs font-bold mb-2 flex items-center space-x-3">
+                                    <span class="bg-slate-800 text-indigo-400 px-2 py-1 rounded">{{ noticia.categoria.nombre if noticia.categoria else 'General' }}</span>
+                                    <span class="text-slate-500">{{ noticia.fuente.nombre if noticia.fuente else 'General' }} • Autor: <span class="text-slate-300">{{ noticia.autor or 'Redacción' }}</span> • {{ noticia.fecha_pub.strftime('%d %b %Y') if noticia.fecha_pub else '' }}</span>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-100 mb-2 leading-tight">{{ noticia.titulo or 'Sin título' }}</h3>
+                                <p class="text-sm text-slate-400 line-clamp-2">{{ noticia.resumen or '' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endmacro %}
+
+            <div id="estado-vacio" class="hidden flex-col items-center justify-center py-20">
+                <svg class="w-16 h-16 text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <p class="text-lg font-bold text-slate-500">No se encontraron documentos.</p>
+                <button onclick="limpiarFiltros()" class="mt-4 text-indigo-400 hover:text-indigo-300 font-bold text-sm">Limpiar Filtros y Fechas</button>
+            </div>
+
+            <!-- CONTENEDORES DE PESTAÑAS: todos llevan "panel-tab"; solo uno sin "hidden" -->
+            <div id="panel-feed" class="panel-tab flex-grow flex flex-col h-full overflow-hidden">{{ render_lista(noticias, "lista-feed") }}</div>
+            <div id="panel-recomendadas" class="panel-tab flex-grow flex flex-col h-full overflow-hidden hidden">{{ render_lista(recomendadas, "lista-recomendadas") }}</div>
+            <div id="panel-favoritos" class="panel-tab flex-grow flex flex-col h-full overflow-hidden hidden">
+                <div id="boveda-grid" class="flex-grow overflow-y-auto px-2 space-y-6 pb-10 custom-scroll lista-noticias"></div>
+            </div>
+
+            <!-- PANEL DE ANALÍTICA Y GRÁFICAS -->
+            <div id="panel-analitica" class="panel-tab flex-grow flex flex-col h-full overflow-y-auto hidden px-2 pb-10 custom-scroll">
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-2">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex items-center space-x-4">
+                        <div class="bg-indigo-500/20 p-4 rounded-full border border-indigo-500/30 text-indigo-400">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Volumen de Búsqueda</p>
+                            <h3 class="text-3xl font-black text-white" id="kpi-total">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex items-center space-x-4">
+                        <div class="bg-emerald-500/20 p-4 rounded-full border border-emerald-500/30 text-emerald-400">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Picos Positivos</p>
+                            <h3 class="text-3xl font-black text-emerald-400" id="kpi-positivos">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex items-center space-x-4">
+                        <div class="bg-rose-500/20 p-4 rounded-full border border-rose-500/30 text-rose-400">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Alertas Negativas</p>
+                            <h3 class="text-3xl font-black text-rose-400" id="kpi-negativos">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-indigo-400 font-bold uppercase tracking-widest text-sm mb-6 text-center">Distribución Temática</h3>
+                        <div class="relative h-64 w-full flex justify-center">
+                            <canvas id="chart-categorias"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-emerald-400 font-bold uppercase tracking-widest text-sm mb-6 text-center">Análisis de Sentimiento Global</h3>
+                        <div class="relative h-64 w-full flex justify-center">
+                            <canvas id="chart-polaridad"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. MODAL DE DOBLE PANEL (PDF Y LECTOR VOZ) -->
+    <!-- ========================================== -->
+    <div id="modal-doble-panel" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md hidden flex justify-center items-center z-50 p-6">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full h-full max-w-[1400px] flex flex-col">
+
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center shrink-0 bg-slate-950/50">
+                <div class="flex items-center space-x-4 w-full pr-10">
+                    <span id="dp-polaridad" class="px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider shadow-md text-white"></span>
+                    <h2 id="dp-titulo" class="text-xl font-black text-white truncate w-3/4"></h2>
+                </div>
+                <button onclick="cerrarModal()" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg absolute right-6 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-2 border-b border-slate-800 bg-slate-900 text-xs font-bold text-slate-400 flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                <span id="dp-fuente-autor"></span>
+            </div>
+
+            <div class="flex flex-col md:flex-row flex-grow overflow-hidden">
+                <div class="w-full md:w-3/5 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col h-full bg-slate-900 p-6">
+                    <h3 class="text-indigo-400 font-bold uppercase tracking-widest text-sm flex items-center mb-4 pb-2 border-b border-slate-800 shrink-0">Documento Original Íntegro</h3>
+                    <div class="flex-grow overflow-y-auto custom-scroll pr-4"><p id="dp-texto-completo" class="texto-noticia text-slate-300 text-lg leading-relaxed"></p></div>
+                </div>
+                <div class="w-full md:w-2/5 flex flex-col h-full bg-slate-950/50 p-6">
+                    <h3 class="text-emerald-400 font-bold uppercase tracking-widest text-sm flex items-center mb-4 pb-2 border-b border-slate-800 shrink-0">Resumen Destacado</h3>
+                    <div class="flex-grow overflow-y-auto custom-scroll pr-4"><p id="dp-resumen" class="texto-noticia text-slate-300 text-base leading-relaxed font-medium bg-slate-900 p-5 rounded-xl border border-slate-800"></p></div>
+
+                    <div class="mt-6 shrink-0 flex flex-col space-y-3">
+                        <div class="flex space-x-3">
+                            <button onclick="leerResumenVoz()" id="btn-voz" class="flex-1 bg-slate-800 hover:bg-indigo-600 text-white font-bold py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors border border-slate-700 hover:border-indigo-500 shadow-md">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                                <span id="texto-btn-voz">Escuchar</span>
+                            </button>
+
+                            <button onclick="descargarReportePDF()" class="flex-1 bg-slate-800 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors border border-slate-700 hover:border-emerald-500 shadow-md">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>Exportar PDF</span>
+                            </button>
+                        </div>
+                        <a href="#" id="dp-url" target="_blank" rel="noopener noreferrer" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg flex items-center justify-center space-x-2 transition-colors shadow-lg">
+                            <span>Auditar Fuente Original</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MOTORES JAVASCRIPT -->
+    <!-- ========================================== -->
+    <script>
+        const supa = window.supabase.createClient('{{ supa_url }}', '{{ supa_key }}');
+
+        let sessionGlobal = null;
+        let misFavoritosSet = new Set();
+        let isGuest = false;
+        let listaAnalitica = 'lista-feed';   // última lista con filtros que alimenta la pestaña Analítica
+
+        const TABS = ['feed', 'recomendadas', 'favoritos', 'analitica'];
+        const ICONO_ESTRELLA_VACIA = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`;
+        const ICONO_ESTRELLA_LLENA = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+
+        // ---------- Utilidades ----------
+        // Escapa HTML para que un título con "<" no rompa ni inyecte código en el PDF
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        // La BD guarda UTC; si el ISO llega sin zona horaria, se interpreta como UTC (no como hora local)
+        const parseUTC = (iso) => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+
+        // Cabecera con el token de Supabase para que el backend valide la sesión
+        function authHeaders() {
+            return sessionGlobal ? { 'Authorization': 'Bearer ' + sessionGlobal.access_token } : {};
+        }
+
+        function idDeBoton(btn) {
+            const m = btn.className.match(/btn-fav-([A-Za-z0-9_-]+)/);
+            return m ? m[1] : null;
+        }
+
+        // Panel de lista visible en este momento (null en la pestaña Analítica)
+        function panelActivo() {
+            return document.querySelector('.panel-tab:not(.hidden) .lista-noticias');
+        }
+
+        // ---------- Arranque ----------
+        document.addEventListener('DOMContentLoaded', () => {
+            const ahora = new Date();
+            document.querySelectorAll('.tarjeta-noticia').forEach(card => {
+                const creacionIso = card.getAttribute('data-creacion');
+                if (creacionIso) {
+                    const diferenciaHoras = (ahora - parseUTC(creacionIso)) / (1000 * 60 * 60);
+                    if (diferenciaHoras >= 0 && diferenciaHoras <= 24) {
+                        const badgeNuevo = card.querySelector('.badge-nuevo');
+                        if (badgeNuevo) badgeNuevo.classList.remove('hidden');
+                    }
+                }
+            });
+            inicializarGraficas();
+            ejecutarFiltros();
+
+            // Atajos de teclado
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') cerrarModal();
+            });
+            ['login-email', 'login-pass'].forEach(id => {
+                document.getElementById(id).addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') document.getElementById('btn-login').click();
+                });
+            });
+            ['reg-email', 'reg-pass'].forEach(id => {
+                document.getElementById(id).addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') document.getElementById('btn-register').click();
+                });
+            });
+        });
+
+        // ---------- Gráficas ----------
+        let chartCat, chartPol;
+
+        function inicializarGraficas() {
+            const ctxCat = document.getElementById('chart-categorias').getContext('2d');
+            const ctxPol = document.getElementById('chart-polaridad').getContext('2d');
+
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = "'Segoe UI', Roboto, sans-serif";
+
+            chartCat = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#e11d48', '#0ea5e9'], borderWidth: 0, hoverOffset: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
+            });
+
+            chartPol = new Chart(ctxPol, {
+                type: 'doughnut',
+                data: { labels: ['Positivo', 'Neutral', 'Negativo'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#10b981', '#64748b', '#e11d48'], borderWidth: 0, hoverOffset: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
+            });
+        }
+
+        function actualizarGraficas() {
+            if (!chartCat || !chartPol) return;
+            const lista = document.getElementById(listaAnalitica);
+            if (!lista) return;
+
+            const conteoCat = {};
+            const conteoPol = { 'Positivo': 0, 'Neutral': 0, 'Negativo': 0 };
+            let total = 0;
+
+            lista.querySelectorAll('.tarjeta-noticia').forEach(card => {
+                if (card.style.display === 'none') return;
+                const cat = card.getAttribute('data-categoria') || 'General';
+                const pol = card.getAttribute('data-polaridad') || 'Neutral';
+
+                conteoCat[cat] = (conteoCat[cat] || 0) + 1;
+                if (conteoPol[pol] !== undefined) conteoPol[pol]++;
+                else conteoPol['Neutral']++;
+                total++;
+            });
+
+            document.getElementById('kpi-total').innerText = total;
+            document.getElementById('kpi-positivos').innerText = conteoPol['Positivo'];
+            document.getElementById('kpi-negativos').innerText = conteoPol['Negativo'];
+
+            chartCat.data.labels = Object.keys(conteoCat);
+            chartCat.data.datasets[0].data = Object.values(conteoCat);
+            chartCat.update();
+
+            chartPol.data.datasets[0].data = [conteoPol['Positivo'], conteoPol['Neutral'], conteoPol['Negativo']];
+            chartPol.update();
+        }
+
+        // ---------- Paneles de acceso ----------
+        function mostrarPanelRegistro() {
+            document.getElementById('panel-login').classList.replace('translate-x-0', '-translate-x-full');
+            document.getElementById('panel-register').classList.replace('translate-x-full', 'translate-x-0');
+        }
+
+        function mostrarPanelLogin() {
+            document.getElementById('panel-register').classList.replace('translate-x-0', 'translate-x-full');
+            document.getElementById('panel-login').classList.replace('-translate-x-full', 'translate-x-0');
+        }
+
+        // ---------- Motor de búsqueda (título, autor, fuente) ----------
+        let debounceTimer;
+        let filtroActual = 'Todos';
+
+        document.getElementById('buscador').addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(ejecutarFiltros, 300); });
+        document.getElementById('filtro-fecha').addEventListener('change', ejecutarFiltros);
+
+        document.querySelectorAll('.filtro-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const actual = e.currentTarget;
+                document.querySelectorAll('.filtro-btn').forEach(b => {
+                    b.classList.remove('bg-indigo-600', 'text-white');
+                    b.classList.add('bg-slate-800', 'text-slate-300');
+                });
+                actual.classList.remove('bg-slate-800', 'text-slate-300');
+                actual.classList.add('bg-indigo-600', 'text-white');
+                filtroActual = actual.getAttribute('data-cat');
+                ejecutarFiltros();
+            });
+        });
+
+        function limpiarFiltros() {
+            document.getElementById('buscador').value = '';
+            document.getElementById('filtro-fecha').value = '';
+            document.querySelector('[data-cat="Todos"]').click();
+        }
+
+        function ejecutarFiltros() {
+            const vacio = document.getElementById('estado-vacio');
+            const lista = panelActivo();
+            if (!lista) { vacio.style.display = 'none'; return; }   // pestaña Analítica
+            listaAnalitica = lista.id;
+
+            const query = document.getElementById('buscador').value.trim().toLowerCase();
+            const fechaFiltro = document.getElementById('filtro-fecha').value;
+            const tarjetas = lista.querySelectorAll('.tarjeta-noticia');
+
+            let cont = 0;
+            tarjetas.forEach(card => {
+                const title = card.getAttribute('data-titulo') || '';
+                const autor = card.getAttribute('data-autor') || '';
+                const fuente = card.getAttribute('data-fuente') || '';
+                const cat = card.getAttribute('data-categoria') || '';
+                const fechaCard = card.getAttribute('data-fecha') || '';
+
+                const matchTexto = !query || title.includes(query) || autor.includes(query) || fuente.includes(query);
+                const matchFiltro = filtroActual === 'Todos' || cat.includes(filtroActual);
+                const matchFecha = !fechaFiltro || fechaCard === fechaFiltro;
+
+                if (matchTexto && matchFiltro && matchFecha) {
+                    card.style.display = 'flex';
+                    cont++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('contador-resultados').textContent = cont;
+            // La bóveda vacía ya muestra su propio mensaje; no se duplica el estado vacío
+            const mostrarVacio = cont === 0 && (tarjetas.length > 0 || lista.id !== 'boveda-grid');
+            vacio.style.display = mostrarVacio ? 'flex' : 'none';
+
+            actualizarGraficas();
+        }
+
+        function cambiarTab(tab) {
+            TABS.forEach(t => {
+                document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+                const b = document.getElementById('tab-' + t);
+                b.classList.toggle('tab-activa', t === tab);
+                b.classList.toggle('tab-inactiva', t !== tab);
+            });
+
+            if (tab === 'analitica') {
+                document.getElementById('estado-vacio').style.display = 'none';
+                setTimeout(actualizarGraficas, 100);
+            } else if (tab === 'favoritos') {
+                renderizarFavoritosUI();   // ya llama a ejecutarFiltros()
+            } else {
+                ejecutarFiltros();
+            }
+        }
+
+        // ---------- Sesión ----------
+        supa.auth.onAuthStateChange(async (event, session) => {
+            sessionGlobal = session;
+            const authModal = document.getElementById('auth-modal');
+            const appDashboard = document.getElementById('app-dashboard');
+            const btnLogout = document.getElementById('btn-logout');
+            const tabFavs = document.getElementById('tab-favoritos');
+
+            if (session) {
+                isGuest = false;
+                authModal.classList.add('hidden');
+                appDashboard.classList.remove('hidden');
+                appDashboard.classList.add('flex');
+
+                btnLogout.textContent = 'Cerrar Sesión';
+                btnLogout.onclick = async () => { await supa.auth.signOut(); window.location.reload(); };
+
+                tabFavs.style.display = 'flex';
+
+                const { data } = await supa.from('favoritos_usuarios').select('id_noticia');
+                misFavoritosSet = new Set(data?.map(d => d.id_noticia) || []);
+                actualizarIconosUI();
+
+            } else if (!isGuest) {
+                authModal.classList.remove('hidden');
+                appDashboard.classList.add('hidden');
+                appDashboard.classList.remove('flex');
+
+                misFavoritosSet.clear();
+                actualizarIconosUI();
+            }
+        });
+
+        async function authEmail(action, btnElement) {
+            let email, password;
+            if (action === 'login') {
+                email = document.getElementById('login-email').value.trim();
+                password = document.getElementById('login-pass').value;
+            } else {
+                email = document.getElementById('reg-email').value.trim();
+                password = document.getElementById('reg-pass').value;
+            }
+
+            if (!email || !password) {
+                alert("Por favor, rellena ambos campos de correo y contraseña.");
+                return;
+            }
+
+            const textoOriginal = btnElement.innerText;
+            btnElement.innerText = 'Procesando...';
+            btnElement.disabled = true;
+
+            let res;
+            try {
+                if (action === 'register') {
+                    res = await supa.auth.signUp({ email, password });
+                    if (!res.error) {
+                        alert("¡Cuenta creada exitosamente en MRCA Solutions!\nInicia sesión para entrar.");
+                        await supa.auth.signOut();
+                        document.getElementById('login-email').value = email;
+                        document.getElementById('login-pass').value = '';
+                        mostrarPanelLogin();
+                    }
+                } else {
+                    res = await supa.auth.signInWithPassword({ email, password });
+                }
+                if (res.error) alert("Error: " + res.error.message);
+            } catch (e) {
+                alert("No se pudo conectar con el servidor de autenticación. Revisa tu conexión.");
+            } finally {
+                btnElement.innerText = textoOriginal;
+                btnElement.disabled = false;
+            }
+        }
+
+        function ingresarComoInvitado() {
+            isGuest = true;
+            document.getElementById('auth-modal').classList.add('hidden');
+
+            const appDashboard = document.getElementById('app-dashboard');
+            appDashboard.classList.remove('hidden');
+            appDashboard.classList.add('flex');
+
+            const btnLogout = document.getElementById('btn-logout');
+            btnLogout.textContent = 'Salir del Modo Prueba';
+            btnLogout.onclick = () => { isGuest = false; window.location.reload(); };
+
+            document.getElementById('tab-favoritos').style.display = 'none';
+        }
+
+        // ---------- Favoritos ----------
+        async function toggleFavoritoSDK(idNoticia) {
+            if (isGuest) {
+                alert("Estás en Modo Prueba. Debes crear una cuenta en MRCA Solutions para usar la bóveda personal.");
+                return;
+            }
+            if (!sessionGlobal) return;
+
+            let error;
+            if (misFavoritosSet.has(idNoticia)) {
+                ({ error } = await supa.from('favoritos_usuarios').delete().match({ id_noticia: idNoticia, user_id: sessionGlobal.user.id }));
+                if (!error) misFavoritosSet.delete(idNoticia);
+            } else {
+                ({ error } = await supa.from('favoritos_usuarios').insert({ id_noticia: idNoticia, user_id: sessionGlobal.user.id }));
+                if (!error) misFavoritosSet.add(idNoticia);
+            }
+            if (error) { alert("No se pudo actualizar tu bóveda: " + error.message); return; }
+
+            actualizarIconosUI();
+            if (!document.getElementById('panel-favoritos').classList.contains('hidden')) renderizarFavoritosUI();
+        }
+
+        function actualizarIconosUI() {
+            document.querySelectorAll('button[class*="btn-fav-"]').forEach(btn => {
+                const id = idDeBoton(btn);
+                if (!id) return;
+
+                if (misFavoritosSet.has(id)) {
+                    btn.classList.replace('bg-slate-800', 'bg-amber-500/20');
+                    btn.classList.replace('text-slate-400', 'text-amber-400');
+                    btn.classList.replace('border-slate-700', 'border-amber-500/30');
+                    btn.innerHTML = ICONO_ESTRELLA_LLENA;
+                } else {
+                    btn.classList.replace('bg-amber-500/20', 'bg-slate-800');
+                    btn.classList.replace('text-amber-400', 'text-slate-400');
+                    btn.classList.replace('border-amber-500/30', 'border-slate-700');
+                    btn.innerHTML = ICONO_ESTRELLA_VACIA;
+                }
+            });
+        }
+
+        function renderizarFavoritosUI() {
+            const grid = document.getElementById('boveda-grid');
+            grid.innerHTML = '';
+            const vistos = new Set();
+
+            // Busca en el directorio general Y en las recomendadas, sin duplicar
+            document.querySelectorAll('#lista-feed .tarjeta-noticia, #lista-recomendadas .tarjeta-noticia').forEach(card => {
+                const btn = card.querySelector('button[class*="btn-fav-"]');
+                const id = btn ? idDeBoton(btn) : null;
+                if (!id || vistos.has(id) || !misFavoritosSet.has(id)) return;
+                vistos.add(id);
+                grid.appendChild(card.cloneNode(true));
+            });
+
+            if (vistos.size === 0) {
+                grid.innerHTML = `<div class="text-center py-20 text-slate-500"><svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg><p class="text-lg font-medium">No hay documentos en tu bóveda.</p></div>`;
+            }
+            ejecutarFiltros();
+        }
+
+        // ---------- Acciones protegidas (el backend valida el token) ----------
+        async function eliminarRegistro(idNoticia) {
+            if (isGuest) {
+                alert("Estás en Modo Prueba. Los permisos de eliminación están bloqueados.");
+                return;
+            }
+            if (!confirm("¿Eliminar este registro de la base de datos central?")) return;
+            try {
+                const res = await fetch(`/noticias/${idNoticia}`, { method: 'DELETE', headers: authHeaders() });
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    alert("No se pudo eliminar: " + (data.detail || data.detalle || res.status));
+                }
+            } catch (e) { alert("Fallo de red al eliminar."); }
+        }
+
+        async function ejecutarScraper() {
+            if (isGuest) {
+                alert("Estás en Modo Prueba. El motor de extracción consume recursos y está restringido a usuarios registrados de MRCA Solutions.");
+                return;
+            }
+            const btn = document.getElementById('btn-extraer');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin mr-2">◷</span> Analizando...';
+            try {
+                const res = await fetch('/ejecutar-scraper', { method: 'POST', headers: authHeaders() });
+                const data = await res.json();
+                alert(data.detalle || data.detail);
+                window.location.reload();
+            } catch (e) { alert("Timeout por red. Refresca en 1 minuto."); window.location.reload(); }
+        }
+
+        // ---------- Modal de lectura profunda ----------
+        function abrirDoblePanel(btnElement) {
+            detenerVoz();
+
+            const attr = (n) => btnElement.getAttribute(n) || '';
+            document.getElementById('dp-titulo').textContent = attr('data-titulo').toUpperCase();
+            document.getElementById('dp-texto-completo').textContent = attr('data-completo') || 'Contenido no disponible.';
+            document.getElementById('dp-resumen').textContent = attr('data-resumen') || 'Resumen no disponible.';
+            document.getElementById('dp-url').href = attr('data-url') || '#';
+
+            const fuente = (attr('data-fuente') || 'General').toUpperCase();
+            const autor = attr('data-autor') || 'Redacción';
+            document.getElementById('dp-fuente-autor').textContent = `${fuente} | Analizado por: ${autor}`;
+
+            const polaridad = attr('data-polaridad') || 'Neutral';
+            const dpPol = document.getElementById('dp-polaridad');
+            dpPol.textContent = polaridad;
+
+            const base = "px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider shadow-md text-white ";
+            if (polaridad === 'Positivo') dpPol.className = base + "bg-emerald-500";
+            else if (polaridad === 'Negativo') dpPol.className = base + "bg-rose-500";
+            else dpPol.className = base + "bg-slate-500";
+
+            document.getElementById('modal-doble-panel').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            detenerVoz();
+            document.getElementById('modal-doble-panel').classList.add('hidden');
+        }
+
+        // ---------- Lector de voz ----------
+        const motorVoz = window.speechSynthesis;
+        let hablando = false;
+
+        function restablecerBotonVoz() {
+            hablando = false;
+            document.getElementById('texto-btn-voz').innerText = 'Escuchar';
+            document.getElementById('btn-voz').classList.replace('bg-indigo-600', 'bg-slate-800');
+        }
+
+        function detenerVoz() {
+            if (motorVoz) motorVoz.cancel();
+            restablecerBotonVoz();
+        }
+
+        function leerResumenVoz() {
+            if (!motorVoz) { alert("Tu navegador no soporta lectura en voz alta."); return; }
+            const btnVoz = document.getElementById('btn-voz');
+            const textoVoz = document.getElementById('texto-btn-voz');
+
+            if (hablando || motorVoz.speaking) { detenerVoz(); return; }
+
+            // Se omite la marca "[Sigue leyendo...]" para que no se lea en voz alta
+            const textoLimpio = document.getElementById('dp-resumen').innerText.replace(/\[Sigue leyendo[^\]]*\]/gi, '').trim();
+            if (!textoLimpio) return;
+
+            const locucion = new SpeechSynthesisUtterance(textoLimpio);
+            locucion.lang = 'es-MX';
+            locucion.rate = 1.05;
+            locucion.pitch = 1;
+            locucion.onend = restablecerBotonVoz;
+            locucion.onerror = restablecerBotonVoz;
+
+            motorVoz.speak(locucion);
+            hablando = true;
+            textoVoz.innerText = 'Detener Audio';
+            btnVoz.classList.replace('bg-slate-800', 'bg-indigo-600');
+        }
+
+        // ---------- Exportar PDF ----------
+        function descargarReportePDF() {
+            const titulo = document.getElementById('dp-titulo').innerText;
+            const fuente = document.getElementById('dp-fuente-autor').innerText;
+            const resumen = document.getElementById('dp-resumen').innerText;
+            const polaridad = document.getElementById('dp-polaridad').innerText;
+            const fecha = new Date().toLocaleDateString('es-MX');
+
+            const documentoVisual = document.createElement('div');
+            documentoVisual.innerHTML = `
+                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 50px; color: #1e293b; background: white;">
+                    <div style="border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 30px;">
+                        <h1 style="color: #4f46e5; font-size: 24px; font-weight: 900; margin: 0;">MRCA SOLUTIONS</h1>
+                        <p style="color: #64748b; font-size: 12px; margin: 5px 0 0 0;">Reporte de Inteligencia Automatizado | Fecha: ${esc(fecha)}</p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <span style="background-color: #e2e8f0; color: #0f172a; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">POLARIDAD: ${esc(polaridad)}</span>
+                    </div>
+
+                    <h2 style="color: #0f172a; font-size: 22px; margin-bottom: 10px; line-height: 1.3;">${esc(titulo)}</h2>
+                    <p style="color: #475569; font-size: 12px; margin-bottom: 35px; border-left: 3px solid #cbd5e1; padding-left: 10px;">${esc(fuente)}</p>
+
+                    <h3 style="color: #4f46e5; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;">Resumen Ejecutivo:</h3>
+                    <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <p style="line-height: 1.7; font-size: 13px; margin: 0; white-space: pre-wrap;">${esc(resumen)}</p>
+                    </div>
+
+                    <div style="margin-top: 60px; text-align: center; color: #94a3b8; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                        Generado por el Motor Analítico de MRCA Solutions.<br>
+                        Documento para uso exclusivo de inteligencia y monitoreo.
+                    </div>
+                </div>
+            `;
+
+            const nombreSeguro = titulo.substring(0, 20).replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/g, '_');
+            const opcionesPDF = {
+                margin: 0,
+                filename: `MRCA_${nombreSeguro}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opcionesPDF).from(documentoVisual).save();
+        }
+    </script>
+</body>
+</html>
